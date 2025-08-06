@@ -17,7 +17,7 @@ class Kaido : ZoroTheme(
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
     // private val rapidCloudExtractor by lazy { RapidCloudExtractor(client, headers, preferences) }
 
-    override fun extractVideo(server: VideoData): List<Video> {
+    override suspend fun extractVideo(server: VideoData): List<Video> {
         return when (server.name) {
             "StreamTape" -> {
                 streamtapeExtractor.videoFromUrl(server.link, "Streamtape - ${server.type}")
