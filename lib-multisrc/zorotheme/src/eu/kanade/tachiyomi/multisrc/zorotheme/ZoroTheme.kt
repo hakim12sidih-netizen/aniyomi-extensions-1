@@ -308,7 +308,7 @@ abstract class ZoroTheme(
         by LazyMutable { preferences.getString(PREF_SERVER_KEY, hosterNames.first())!! }
 
     private var SharedPreferences.prefLang
-        by LazyMutable { preferences.getString(PREF_LANG_KEY, PREF_LANG_DEFAULT)!! }
+        by LazyMutable { preferences.getString(PREF_TYPE_KEY, PREF_TYPE_DEFAULT)!! }
 
     private var SharedPreferences.hostToggle
         by LazyMutable { preferences.getStringSet(PREF_HOSTER_KEY, hosterNames.toSet())!! }
@@ -327,8 +327,8 @@ abstract class ZoroTheme(
         private const val PREF_QUALITY_KEY = "preferred_quality"
         private const val PREF_QUALITY_DEFAULT = "1080"
 
-        private const val PREF_LANG_KEY = "preferred_language"
-        private const val PREF_LANG_DEFAULT = "Sub"
+        private const val PREF_TYPE_KEY = "preferred_type"
+        private const val PREF_TYPE_DEFAULT = "Sub"
 
         private const val PREF_SERVER_KEY = "preferred_server"
 
@@ -387,11 +387,11 @@ abstract class ZoroTheme(
         }
 
         screen.addListPreference(
-            key = PREF_LANG_KEY,
+            key = PREF_TYPE_KEY,
             title = "Preferred Type",
             entries = TYPES_ENTRIES,
             entryValues = TYPES_ENTRIES,
-            default = PREF_LANG_DEFAULT,
+            default = PREF_TYPE_DEFAULT,
             summary = "%s",
         ) {
             preferences.prefLang = it
