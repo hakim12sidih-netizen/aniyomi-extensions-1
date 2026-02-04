@@ -1,4 +1,4 @@
-name: Build and Push Extensions
+name: Build Franime Only
 
 on:
   push:
@@ -25,19 +25,19 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
       
-    - name: Build all extensions
-      run: ./gradlew assembleDebug
+    - name: Build Franime only
+      run: ./gradlew :src:fr:franime:assembleDebug
       
-    - name: Collect APKs
+    - name: Collect APK
       run: |
         mkdir -p apk-output
-        find src -path "*/build/outputs/apk/debug/*.apk" -exec cp {} apk-output/ \;
+        find src/fr/franime -path "*/build/outputs/apk/debug/*.apk" -exec cp {} apk-output/ \;
         ls -la apk-output/
         
     - name: Upload to Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: extensions-apk
+        name: franime-apk
         path: apk-output/*.apk
         
     - name: Create Release
@@ -45,10 +45,10 @@ jobs:
       if: github.event_name == 'push'
       with:
         files: apk-output/*.apk
-        tag_name: v${{ github.run_number }}
-        name: Extensions Build ${{ github.run_number }}
+        tag_name: franime-v${{ github.run_number }}
+        name: Franime Build ${{ github.run_number }}
         body: |
-          Build automatique des extensions Aniyomi
+          Build automatique de l'extension Franime
           Date: ${{ github.event.head_commit.timestamp }}
         draft: false
         prerelease: false
