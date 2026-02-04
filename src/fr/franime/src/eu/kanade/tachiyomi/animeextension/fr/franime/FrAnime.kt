@@ -225,7 +225,7 @@ class FrAnime : AnimeHttpSource(), ConfigurableAnimeSource {
                 "Téléchargeur externe",
                 "IDM (Internet Download Manager)",
                 "JDownloader",
-                "Navigateur"
+                "Navigateur",
             )
             entryValues = arrayOf("stream", "copy", "external", "idm", "jdownloader", "browser")
             setDefaultValue("stream")
