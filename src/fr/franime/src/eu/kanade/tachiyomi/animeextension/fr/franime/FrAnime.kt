@@ -1,6 +1,9 @@
 package eu.kanade.tachiyomi.animeextension.fr.franime
 
+import androidx.preference.ListPreference
+import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.fr.franime.dto.Anime
+import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -10,17 +13,19 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.sendvidextractor.SendvidExtractor
 import eu.kanade.tachiyomi.lib.sibnetextractor.SibnetExtractor
 import eu.kanade.tachiyomi.lib.vidmolyextractor.VidMolyExtractor
+import eu.kanade.tachiyomi.lib.vidoextractor.VidoExtractor
 import eu.kanade.tachiyomi.lib.vkextractor.VkExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
 
-class FrAnime : AnimeHttpSource() {
+class FrAnime : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override val name = "FRAnime"
 
@@ -35,7 +40,19 @@ class FrAnime : AnimeHttpSource() {
 
     override val supportsLatest = true
 
+    override val client: OkHttpClient = network.cloudflareClient.newBuilder()
+        .addInterceptor { chain ->
+            val request = chain.request().newBuilder()
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .header("Referer", baseUrl)
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+                .build()
+            chain.proceed(request)
+        }
+        .build()
+
     override fun headersBuilder() = super.headersBuilder()
+        .add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         .add("Referer", "$baseUrl/")
         .add("Origin", baseUrl)
 
@@ -128,6 +145,7 @@ class FrAnime : AnimeHttpSource() {
         val sibnetExtractor by lazy { SibnetExtractor(client) }
         val vkExtractor by lazy { VkExtractor(client, headers) }
         val vidMolyExtractor by lazy { VidMolyExtractor(client) }
+        val vidoExtractor by lazy { VidoExtractor(client) }
 
         val videos = players.withIndex().parallelCatchingFlatMap { (index, playerName) ->
             val apiUrl = "$videoBaseUrl/$episodeLang/$index"
@@ -138,6 +156,7 @@ class FrAnime : AnimeHttpSource() {
                     "sibnet" -> sibnetExtractor.videosFromUrl(playerUrl)
                     "vk" -> vkExtractor.videosFromUrl(playerUrl)
                     "vidmoly" -> vidMolyExtractor.videosFromUrl(playerUrl)
+                    "vido" -> vidoExtractor.videosFromUrl(playerUrl)
                     else -> emptyList()
                 }
             } catch (e: Exception) {
@@ -194,5 +213,24 @@ class FrAnime : AnimeHttpSource() {
             "TERMINÉ" -> SAnime.COMPLETED
             else -> SAnime.UNKNOWN
         }
+    }
+
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        val downloadModePref = ListPreference(screen.context).apply {
+            key = "download_mode"
+            title = "Mode de téléchargement"
+            entries = arrayOf(
+                "Streaming normal",
+                "Copier le lien",
+                "Téléchargeur externe",
+                "IDM (Internet Download Manager)",
+                "JDownloader",
+                "Navigateur"
+            )
+            entryValues = arrayOf("stream", "copy", "external", "idm", "jdownloader", "browser")
+            setDefaultValue("stream")
+            summary = "%s"
+        }
+        screen.addPreference(downloadModePref)
     }
 }
