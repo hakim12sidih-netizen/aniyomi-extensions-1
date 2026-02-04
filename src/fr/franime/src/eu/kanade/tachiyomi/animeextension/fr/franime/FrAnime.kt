@@ -143,7 +143,7 @@ class FrAnime : AnimeHttpSource() {
             } catch (e: Exception) {
                 emptyList()
             }
-            videoList + Video(playerUrl, "$playerName (Embed)", playerUrl)
+            videoList + Video(playerUrl, "$playerName (Embed)", playerUrl, headers = headers)
         }
         return videos
     }
