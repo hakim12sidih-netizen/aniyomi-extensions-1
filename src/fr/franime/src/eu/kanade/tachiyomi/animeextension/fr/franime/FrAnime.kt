@@ -325,14 +325,14 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         Pair("Fantastique", "fantastique"),
         Pair("Horreur", "horreur"),
         Pair("Romance", "romance"),
-        Pair("Sci-Fi", "sci-fi")
+        Pair("Sci-Fi", "sci-fi"),
     )
 
     private fun getStatusList(): Array<Pair<String, String>> = arrayOf(
         Pair("Tous", ""),
         Pair("En cours", "ongoing"),
         Pair("Terminé", "completed"),
-        Pair("Annulé", "cancelled")
+        Pair("Annulé", "cancelled"),
     )
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
