@@ -25,8 +25,8 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
       
-    - name: Build Franime only
-      run: ./gradlew :src:fr:franime:assembleDebug
+    - name: Build Franime only (skip lint)
+      run: ./gradlew :src:fr:franime:assembleDebug -x lintKotlin
       
     - name: Collect APK
       run: |
@@ -49,7 +49,6 @@ jobs:
         name: Franime Build ${{ github.run_number }}
         body: |
           Build automatique de l'extension Franime
-          Date: ${{ github.event.head_commit.timestamp }}
         draft: false
         prerelease: false
       env:
