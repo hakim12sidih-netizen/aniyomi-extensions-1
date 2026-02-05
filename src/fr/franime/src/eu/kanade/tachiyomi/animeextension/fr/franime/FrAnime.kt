@@ -361,10 +361,27 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             setDefaultValue(false)
         }
 
+        val downloadModePref = ListPreference(screen.context).apply {
+            key = "download_mode"
+            title = "Mode de téléchargement"
+            entries = arrayOf(
+                "Streaming normal",
+                "Copier le lien",
+                "Téléchargeur externe",
+                "IDM (Internet Download Manager)",
+                "JDownloader",
+                "Navigateur",
+            )
+            entryValues = arrayOf("stream", "copy", "external", "idm", "jdownloader", "browser")
+            setDefaultValue("stream")
+            summary = "%s"
+        }
+
         screen.addPreference(qualityPref)
         screen.addPreference(cloudflareBypassPref)
         screen.addPreference(dnsBypassPref)
         screen.addPreference(proxyPref)
+        screen.addPreference(downloadModePref)
     }
 
     private fun String.encodeUri(): String {
