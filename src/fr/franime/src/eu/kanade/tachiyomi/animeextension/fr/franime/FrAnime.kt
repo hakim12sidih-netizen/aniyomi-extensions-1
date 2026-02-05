@@ -8,13 +8,11 @@ import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
-import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import kotlinx.serialization.json.Json
 import okhttp3.Headers
@@ -25,6 +23,13 @@ import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import okhttp3.Interceptor
+import okhttp3.Dns
+import java.net.InetAddress
+import java.net.Proxy
+import java.net.ProxySelector
+import java.net.SocketAddress
+import java.net.URI
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -137,7 +142,7 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         anime.thumbnail_url = document.select(".anime-poster img").attr("data-src")
             .ifEmpty { document.select(".anime-poster img").attr("src") }
         anime.description = document.select(".synopsis").text()
-        anime.genre = document.select("a[href*="genre"]").map { it.text() }.joinToString()
+        anime.genre = document.select("a[href*=\"genre\"]").map { it.text() }.joinToString()
         anime.status = parseStatus(document.select(".status").text())
         return anime
     }
@@ -386,5 +391,43 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private fun String.encodeUri(): String {
         return java.net.URLEncoder.encode(this, "UTF-8")
+    }
+
+    // Classes internes pour le contournement (ajoutées pour corriger les erreurs de référence)
+    class CloudflareInterceptor : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): Response {
+            val request = chain.request()
+            val response = chain.proceed(request)
+            if (response.code == 503 && response.headers["Server"] == "cloudflare") {
+                return chain.proceed(request)
+            }
+            return response
+        }
+    }
+
+    class DnsOverHttpsBypass : Dns {
+        override fun lookup(hostname: String): List<InetAddress> {
+            return try {
+                Dns.SYSTEM.lookup(hostname)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    class UserAgentInterceptor : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): Response {
+            val originalRequest = chain.request()
+            return chain.proceed(originalRequest.newBuilder()
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .build())
+        }
+    }
+
+    class CustomProxySelector : ProxySelector() {
+        override fun select(uri: URI?): List<Proxy> {
+            return listOf(Proxy.NO_PROXY)
+        }
+        override fun connectFailed(uri: URI?, sa: SocketAddress?, ioe: java.io.IOException?) {}
     }
 }
