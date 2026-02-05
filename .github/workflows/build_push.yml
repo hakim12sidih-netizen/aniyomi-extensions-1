@@ -26,7 +26,7 @@ jobs:
       run: chmod +x gradlew
       
     - name: Build Franime only (skip lint)
-      run: ./gradlew :src:fr:franime:assembleDebug -x lintKotlin
+      run: ./gradlew :src:fr:franime:assembleDebug -x lintKotlin --stacktrace
       
     - name: Collect APK
       run: |

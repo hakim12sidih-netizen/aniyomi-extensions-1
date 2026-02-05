@@ -14,7 +14,6 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
-import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -23,20 +22,13 @@ import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import okhttp3.Interceptor
-import okhttp3.Dns
-import java.net.InetAddress
-import java.net.Proxy
-import java.net.ProxySelector
-import java.net.SocketAddress
-import java.net.URI
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
+class FrAnime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
-    override val name = "FrAnime"
+    override val name = "FRAnime"
     override val baseUrl = "https://franime.fr"
     override val lang = "fr"
     override val supportsLatest = true
@@ -45,51 +37,22 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
     }
 
-    override val client: OkHttpClient by lazy {
-        val builder = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .followRedirects(true)
-            .followSslRedirects(true)
-
-        if (preferences.getBoolean("cloudflare_bypass", true)) {
-            builder.addInterceptor(CloudflareInterceptor())
+    override val client: OkHttpClient = network.cloudflareClient.newBuilder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .addInterceptor { chain ->
+            val request = chain.request().newBuilder()
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .header("Referer", "$baseUrl/")
+                .build()
+            chain.proceed(request)
         }
+        .build()
 
-        if (preferences.getBoolean("dns_bypass", true)) {
-            builder.dns(DnsOverHttpsBypass())
-        }
-
-        builder.addInterceptor(UserAgentInterceptor())
-
-        if (preferences.getBoolean("use_proxy", false)) {
-            builder.proxySelector(CustomProxySelector())
-        }
-
-        builder.build()
-    }
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-    }
-
-    override fun headersBuilder(): Headers.Builder {
-        return Headers.Builder()
-            .add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            .add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-            .add("Accept-Language", "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7")
-            .add("Accept-Encoding", "gzip, deflate, br")
-            .add("Referer", baseUrl)
-            .add("Sec-Fetch-Dest", "document")
-            .add("Sec-Fetch-Mode", "navigate")
-            .add("Sec-Fetch-Site", "none")
-            .add("Sec-Fetch-User", "?1")
-            .add("Upgrade-Insecure-Requests", "1")
-            .add("DNT", "1")
-            .add("Connection", "keep-alive")
-            .add("Cache-Control", "max-age=0")
-    }
+    override fun headersBuilder() = super.headersBuilder()
+        .add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .add("Referer", "$baseUrl/")
+        .add("Origin", baseUrl)
 
     override fun popularAnimeSelector(): String = "div.anime-card, .anime-item"
     override fun popularAnimeNextPageSelector(): String = "a.next.page-numbers"
@@ -212,7 +175,7 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return try {
             val response = client.newCall(GET(url, headers)).execute()
             val body = response.body.string()
-            val videoUrl = Regex("src:\s*['"]([^'"]+\.mp4)['"]").find(body)?.groupValues?.get(1)
+            val videoUrl = Regex("src:\\s*['\"]([^'\"]+\\.mp4)['\"]").find(body)?.groupValues?.get(1)
             videoUrl?.let { listOf(Video(it, "Sibnet", it, headers)) } ?: emptyList()
         } catch (e: Exception) {
             emptyList()
@@ -225,7 +188,7 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             val body = response.body.string()
             val videos = mutableListOf<Video>()
             listOf("url720", "url480", "url360").forEach { quality ->
-                Regex(""$quality":"([^"]+)"").find(body)?.groupValues?.get(1)?.let {
+                Regex("\"$quality\":\"([^\"]+)\"").find(body)?.groupValues?.get(1)?.let {
                     videos.add(Video(it.replace("\\/", "/"), "VK $quality", it.replace("\\/", "/"), headers))
                 }
             }
@@ -239,7 +202,7 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return try {
             val response = client.newCall(GET(url, headers)).execute()
             val body = response.body.string()
-            val videoUrl = Regex(""video_src":\s*"([^"]+)"").find(body)?.groupValues?.get(1)
+            val videoUrl = Regex("\"video_src\":\\s*\"([^\"]+)\"").find(body)?.groupValues?.get(1)
             videoUrl?.let { listOf(Video(it, "Sendvid", it, headers)) } ?: emptyList()
         } catch (e: Exception) {
             emptyList()
@@ -253,8 +216,8 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             val response = client.newCall(GET(apiUrl, headers)).execute()
             val json = response.body.string()
             val videos = mutableListOf<Video>()
-            Regex(""qualities":\{([^}]+)\}").find(json)?.groupValues?.get(1)?.let { qualities ->
-                Regex(""([^"]+)":\{"type":"video/mp4","url":"([^"]+)"").findAll(qualities).forEach { match ->
+            Regex("\"qualities\":\\{([^}]+)\\}").find(json)?.groupValues?.get(1)?.let { qualities ->
+                Regex("\"([^\"]+)\":\\{\"type\":\"video/mp4\",\"url\":\"([^\"]+)\"").findAll(qualities).forEach { match ->
                     videos.add(Video(match.groupValues[2].replace("\\/", "/"), "Dailymotion ${match.groupValues[1]}", match.groupValues[2].replace("\\/", "/"), headers))
                 }
             }
@@ -267,9 +230,9 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private fun extractFromScript(script: String): List<Video> {
         val videos = mutableListOf<Video>()
         listOf(
-            Regex(""src"\s*:\s*"([^"]+\.m3u8)""),
-            Regex(""file"\s*:\s*"([^"]+)""),
-            Regex("videoUrl\s*=\s*['"]([^'"]+)['"]")
+            Regex("\"src\"\\s*:\\s*\"([^\"]+\\.m3u8)\""),
+            Regex("\"file\"\\s*:\\s*\"([^\"]+)\""),
+            Regex("videoUrl\\s*=\s*['\"]([^'\"]+)['\"]")
         ).forEach { pattern ->
             pattern.findAll(script).forEach { match ->
                 val url = match.groupValues[1]
@@ -291,7 +254,7 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun List<Video>.sort(): List<Video> {
         val quality = preferences.getString("preferred_quality", "1080")
-        return sortedWith(compareBy { 
+        return sortedWith(compareBy {
             when {
                 it.quality.contains(quality ?: "1080") -> 0
                 it.quality.contains("1080") -> 1
@@ -310,10 +273,10 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         )
     }
 
-    private class GenreFilter(genres: Array<Pair<String, String>>) : 
+    private class GenreFilter(genres: Array<Pair<String, String>>) :
         AnimeFilter.Select<String>("Genre", genres.map { it.first }.toTypedArray())
 
-    private class StatusFilter(status: Array<Pair<String, String>>) : 
+    private class StatusFilter(status: Array<Pair<String, String>>) :
         AnimeFilter.Select<String>("Statut", status.map { it.first }.toTypedArray())
 
     private fun getGenreList(): Array<Pair<String, String>> = arrayOf(
@@ -345,27 +308,6 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             summary = "%s"
         }
 
-        val cloudflareBypassPref = SwitchPreferenceCompat(screen.context).apply {
-            key = "cloudflare_bypass"
-            title = "Bypass Cloudflare"
-            summary = "Activer les méthodes de contournement Cloudflare"
-            setDefaultValue(true)
-        }
-
-        val dnsBypassPref = SwitchPreferenceCompat(screen.context).apply {
-            key = "dns_bypass"
-            title = "DNS over HTTPS"
-            summary = "Utiliser DNS over HTTPS pour éviter le blocage"
-            setDefaultValue(true)
-        }
-
-        val proxyPref = SwitchPreferenceCompat(screen.context).apply {
-            key = "use_proxy"
-            title = "Utiliser un proxy"
-            summary = "Contourner les restrictions via proxy"
-            setDefaultValue(false)
-        }
-
         val downloadModePref = ListPreference(screen.context).apply {
             key = "download_mode"
             title = "Mode de téléchargement"
@@ -383,51 +325,10 @@ class Franime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
 
         screen.addPreference(qualityPref)
-        screen.addPreference(cloudflareBypassPref)
-        screen.addPreference(dnsBypassPref)
-        screen.addPreference(proxyPref)
         screen.addPreference(downloadModePref)
     }
 
     private fun String.encodeUri(): String {
         return java.net.URLEncoder.encode(this, "UTF-8")
-    }
-
-    // Classes internes pour le contournement (ajoutées pour corriger les erreurs de référence)
-    class CloudflareInterceptor : Interceptor {
-        override fun intercept(chain: Interceptor.Chain): Response {
-            val request = chain.request()
-            val response = chain.proceed(request)
-            if (response.code == 503 && response.headers["Server"] == "cloudflare") {
-                return chain.proceed(request)
-            }
-            return response
-        }
-    }
-
-    class DnsOverHttpsBypass : Dns {
-        override fun lookup(hostname: String): List<InetAddress> {
-            return try {
-                Dns.SYSTEM.lookup(hostname)
-            } catch (e: Exception) {
-                emptyList()
-            }
-        }
-    }
-
-    class UserAgentInterceptor : Interceptor {
-        override fun intercept(chain: Interceptor.Chain): Response {
-            val originalRequest = chain.request()
-            return chain.proceed(originalRequest.newBuilder()
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                .build())
-        }
-    }
-
-    class CustomProxySelector : ProxySelector() {
-        override fun select(uri: URI?): List<Proxy> {
-            return listOf(Proxy.NO_PROXY)
-        }
-        override fun connectFailed(uri: URI?, sa: SocketAddress?, ioe: java.io.IOException?) {}
     }
 }
