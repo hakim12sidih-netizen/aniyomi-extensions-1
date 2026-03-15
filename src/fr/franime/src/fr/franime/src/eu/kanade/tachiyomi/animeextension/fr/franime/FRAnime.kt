@@ -125,14 +125,14 @@ class FRAnime : AnimeHttpSource(), ConfigurableAnimeSource {
 
         val filtered = all.filter { anime ->
             val matchesQuery = if (query.isNotBlank()) {
-                val q = query.lowercase(Locale.ROOT)
+                val q = query.toLowerCase(Locale.ROOT)
                 listOfNotNull(
                     anime.title,
                     anime.originalTitle,
                     anime.titlesAlt.en,
                     anime.titlesAlt.enJp,
                     anime.titlesAlt.jaJp,
-                ).any { it.lowercase(Locale.ROOT).contains(q) }
+                ).any { it.toLowerCase(Locale.ROOT).contains(q) }
             } else {
                 true
             }
@@ -258,7 +258,7 @@ class FRAnime : AnimeHttpSource(), ConfigurableAnimeSource {
         ) ?: emptySet()
 
         val videos = mutableListOf<Video>()
-        players.map { it.trim().lowercase(Locale.ROOT) }
+        players.map { it.trim().toLowerCase(Locale.ROOT) }
             .filter { it.isNotBlank() && it !in IGNORE_PLAYERS }
             .filter { allowedHosters.contains(it) }
             .forEach { lecteur ->
@@ -371,7 +371,7 @@ class FRAnime : AnimeHttpSource(), ConfigurableAnimeSource {
         url = "/anime/${id}"
         description = this@toSAnime.description
         genre = genres.joinToString(", ")
-        status = when (status.lowercase(Locale.ROOT)) {
+        status = when (status.toLowerCase(Locale.ROOT)) {
             "en cours" -> SAnime.ONGOING
             "terminé", "termine" -> SAnime.COMPLETED
             else -> SAnime.UNKNOWN
@@ -420,7 +420,7 @@ class FRAnime : AnimeHttpSource(), ConfigurableAnimeSource {
             "Slice of Life", "Sport", "Surnaturel", "Thriller",
         ),
     ) {
-        private val values = arrayOf(
+        override val values = arrayOf(
             "",
             "Action", "Aventure", "Comédie", "Drame", "Fantaisie",
             "Horreur", "Mystère", "Romance", "Science-fiction",
@@ -433,7 +433,7 @@ class FRAnime : AnimeHttpSource(), ConfigurableAnimeSource {
         "Statut",
         arrayOf("Tous", "EN COURS", "TERMINÉ"),
     ) {
-        private val values = arrayOf("", "EN COURS", "TERMINÉ")
+        override val values = arrayOf("", "EN COURS", "TERMINÉ")
         fun selectedValue() = values[state]
     }
 
@@ -441,7 +441,7 @@ class FRAnime : AnimeHttpSource(), ConfigurableAnimeSource {
         "Format",
         arrayOf("Tous", "TV", "Film", "ONA", "OVA", "Special"),
     ) {
-        private val values = arrayOf("", "TV", "Film", "ONA", "OVA", "Special")
+        override val values = arrayOf("", "TV", "Film", "ONA", "OVA", "Special")
         fun selectedValue() = values[state]
     }
 
